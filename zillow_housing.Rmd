@@ -61,16 +61,11 @@ Meet Yusi Yao! Born in Nanjing, China, Yusi is always on the go-whether it is he
 
 # **Data Introduction**
 
----
-title: "Dataset Summary - Zillow Observed Rent Index (ZORI)"
-output: html_document
----
-
 ## **Dataset Overview**
 This dataset tracks rental price trends across different ZIP codes in the U.S. It includes rental price estimates for single-family homes and condominiums. The data covers monthly rent values from **January 2015 to January 2025**.
 
 ## **Data Category**
-This dataset belongs to **Real Estate & Housing Markets** because it shows rental price trends in different locations.
+This dataset belongs to category 8 **Housing**. In this project, we tend to discover the LA wildfire's impact on the housing market in the ZIP codes of Los Angeles.
 
 ## **Data Dictionary**
 | Column Name    | Description |
@@ -96,7 +91,7 @@ This dataset comes from **Zillow’s public data**. More details can be found at
 
 
 
-# Analysis & Discussion
+# **Analysis & Discussion**
 # Citations 
 # Appendix
 
