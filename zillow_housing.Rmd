@@ -113,7 +113,7 @@ This dataset comes from **Zillow’s public data**. More details can be found at
 
 ```{r}
 # Read the dataset (using relative path) and suppress column type warnings
-Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("Zip_zori_uc_sfrcondomfr_sm_month.csv"), show_col_types = FALSE)
+Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("data", "Zip_zori_uc_sfrcondomfr_sm_month.csv"), show_col_types = FALSE)
 
 # Filter for Los Angeles County (focus on LA housing market)
 la_housing <- Zip_zori_uc_sfrcondomfr_sm_month %>%
@@ -141,7 +141,7 @@ la_housing_long <- la_housing_long %>%
   ungroup()
 
 # Save cleaned dataset using relative path
-write_csv(la_housing_long, here("cleaned_LA_housing.csv"))
+write_csv(la_housing_long, here("data", "cleaned_LA_housing.csv"))
 ```
 
 Rental Price Trends in Los Angeles County
