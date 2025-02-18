@@ -1,0 +1,103 @@
+---
+title: "CMDA-4654"
+subtitle: "Group Project 1"
+author: "Yusi Yao & Xavier Akers"
+date: "2025-02-18"
+output:
+  pdf_document:
+    highlight: haddock
+keep_tex: no
+number_sections: no
+html_document:
+  df_print: paged
+geometry: margin = 0.5in
+header-includes:
+- \usepackage{newunicodechar}
+- \newunicodechar{≤}{\ensuremath{\leq}}
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+editor_options:
+  chunk_output_type: console
+documentclass: article
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+# This is the setup chunk
+#  Here you can set global options for the entire document
+
+library(knitr) # I recommend doing this here
+
+# Although you can call functions from a library using the following notation
+#  without loading the entire library.
+knitr::opts_chunk$set(echo = TRUE, 
+                      comment = NA, # Required
+                      fig.path = "./figures/",  # Store all figures here in relative path (make the folder first)
+                      fig.align = "center",
+                      fig.width = 7,
+                      fig.height = 7,
+                      message = FALSE, # Turn off load messages
+                      warning = FALSE # Turn off warnings
+                      )
+
+```
+\clearpage
+
+# Teammate Introduction
+
+Meet Yusi Yao! Born in Nanjing, China, Yusi is always on the go-whether it is heading back to D.C. on weekends or enjoying the outdoors. When in Blacksburg, Rainbowl is the go-to spot for a great meal. In free time, Yusi enjoys fishing and playing soccer, making the most of both nature and sports.
+
+# **Data Introduction**
+
+---
+title: "Dataset Summary - Zillow Observed Rent Index (ZORI)"
+output: html_document
+---
+
+## **Dataset Overview**
+This dataset tracks rental price trends across different ZIP codes in the U.S. It includes rental price estimates for single-family homes and condominiums. The data covers monthly rent values from **January 2015 to January 2025**.
+
+## **Data Category**
+This dataset belongs to **Real Estate & Housing Markets** because it shows rental price trends in different locations.
+
+## **Data Dictionary**
+| Column Name    | Description |
+|---------------|-------------|
+| **RegionID**   | Unique ID for each ZIP code. |
+| **SizeRank**   | Ranking of ZIP code by housing market size. |
+| **RegionName** | ZIP code number. |
+| **RegionType** | Type of region (e.g., "zip"). |
+| **StateName**  | Full name of the state. |
+| **State**      | Two-letter state abbreviation. |
+| **City**       | City name. |
+| **Metro**      | Metro area including the ZIP code. |
+| **CountyName** | County name. |
+| **2015-01-31, ..., 2025-01-31** | Monthly rent estimates in dollars. |
+
+## **Data Source**
+This dataset comes from **Zillow’s public data**. More details can be found at:  
+[Zillow Research Data](https://www.zillow.com/research/data/)
+
+
+
+
+
+
+
+# Analysis & Discussion
+# Citations 
+# Appendix
+
+
