@@ -246,6 +246,8 @@ We see the model was successful at classifying the wildfire based on different f
 
 Therefore, the Naive Bayes classifier was able to successfully predict wildfire regions using rent indexes, time, and region information for the Easy Fire, Getty Fire, and Saddle Ridge Fire.
 
+\pagebreak
+
 # Appendix {.unnumbered}
 
 ## Data Preprocessing Code
@@ -302,6 +304,8 @@ nb_df$Year = as.factor(nb_df$Year)
 nb_df$Month = as.factor(nb_df$Month)
 nb_df$Rent_Category = as.factor(nb_df$Rent_Category)
 ```
+
+\pagebreak
 
 # Citation
 
