@@ -43,6 +43,7 @@ library(tidyverse) # Includes dplyr, ggplot2, tidyr, etc.
 library(zoo)      # For handling missing values
 library(ggplot2)  # For plotting
 library(here)     # Ensures all file paths are relative
+library(scales)   # For scaling plots
 
 # Set global options for figures and output
 knitr::opts_chunk$set(
@@ -103,7 +104,84 @@ This dataset comes from **Zillow’s public data**. More details can be found at
 
 # **Analysis & Discussion**
 
-```{r}
-la_housing_long = read.csv(file="data/cleaned_LA_housing.csv")
-head(la_housing_long)
+We aim to analyze the **Rental Price Index** in areas of wildfires. Specifically, we will be looking at the location of the Easy Fire (October 2019), Getty Fire (October 2019), and the Saddle Ridge Fire (October 2019). The ZIP codes of each fire are stored in `easy_fire_zips`, `getty_fire_zips`, and `saddle_ridge_zips`.
+
+```{r fire_zips}
+easy_fire_zips = c(93065, 91360, 93021, 93063, 91320, 93012, 91362, 91361, 91307, 93015, 93066)
+getty_fire_zips = c(90049, 90025, 90024, 90272, 90403, 91403, 91436, 90402, 90077, 90095, 90073)
+saddle_ridge_fire_zips = c(91342, 91344, 91326, 91311, 91321, 91381, 93063, 91331, 91350, 91355, 91387, 91304, 91354, 91343, 91306, 91351, 91352, 91325, 91042, 91324, 91040, 91384, 91340, 91390, 91345, 93015, 93510, 93040, 91330)
+fire_zips = c(easy_fire_zips, getty_fire_zips, saddle_ridge_fire_zips)
 ```
+
+A sample of the Los Angeles Fire Housing data for only these ZIP codes is shown below.
+
+```{r load_df, echo=FALSE}
+la_housing_long = read.csv(file="data/cleaned_LA_housing.csv")
+la_housing_long$Date = as.Date(la_housing_long$Date, format = "%Y-%m-%d")
+
+fire_housing_data = la_housing_long %>%
+  filter(RegionName %in% fire_zips)
+fire_housing_data = fire_housing_data[!is.na(fire_housing_data$Rent_Price),]
+fire_categories <- tibble(
+  RegionName = c(easy_fire_zips, getty_fire_zips, saddle_ridge_fire_zips),
+  Fire = c(
+    rep("Easy Fire", length(easy_fire_zips)),
+    rep("Getty Fire", length(getty_fire_zips)),
+    rep("Saddle Ridge Fire", length(saddle_ridge_fire_zips))
+  )
+)
+fire_housing_data <- fire_housing_data %>%
+  left_join(fire_categories, by = "RegionName")
+head(fire_housing_data, 3)
+```
+
+## **Location Comparisons**
+
+The follwing boxplot displays the distribution of rent prices in ZIP codes affected by the different wildfires. From the distribution of rent prices, we can make educated assumptions about each location's rental market.
+
+```{r fig.width=7, fig.height=4}
+ggplot(fire_housing_data, aes(x = Fire, y = Rent_Price, fill = Fire)) +
+  geom_boxplot() +
+  labs(
+    title = "Comparison of House Rent Index in Fire-Affected Areas",
+    x = "Fire Area",
+    y = "House Rent Index"
+  ) +
+  theme_minimal()
+```
+
+Rental indexes in the Easy Fire region were generally higher than the other regions, with very few extreme values. The Getty Fire region had a wider range of rental prices, including some outliers. This suggest the Getty Fire also included some wealthier or more in demand areas. The Saddle Ridge Fire region had a more concentrated range of rental prices, with a few hig-end outliers.
+
+The following density plot visualizes each of the wildfire locations. This helps us better understand underlying distribution of the data.
+
+```{r fig.width=7, fig.height=4}
+ggplot(fire_housing_data, aes(x = Rent_Price, color = Fire, fill = Fire)) +
+  geom_density(alpha = 0.3) +
+  labs(
+    title = "Density Plot of Rent Prices in Fire-Affected Areas",
+    x = "Rent Price",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+This visual reinfroces our assumptions from the prior boxplot. Residences in the Easy Fire region experience lower variance in rental price index. Houses in the Saddle Ridge fire are generally lower than the other two regions, with a few outliers, potentially indicating a more expensive or in demand area nearby. The Getty fire region has the largest variance, with one large peak and two smaller peaks on the high end. This indicate that the Saddle Ridge Fire spread to a broader range of communities.
+
+Below is a table displaying the summary statistics of the rental prices in the fire-affected areas.
+
+```{r}
+summary_table <- fire_housing_data %>%
+  group_by(Fire) %>%
+  summarize(
+    Mean_Rent = mean(Rent_Price, na.rm = TRUE),
+    Median_Rent = median(Rent_Price, na.rm = TRUE),
+    Min_Rent = min(Rent_Price, na.rm = TRUE),
+    Max_Rent = max(Rent_Price, na.rm = TRUE),
+    Std_Dev = sd(Rent_Price, na.rm = TRUE)
+  )
+
+print(summary_table)
+
+```
+
+## **Predictive Analysis**
