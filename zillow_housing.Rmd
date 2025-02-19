@@ -306,6 +306,240 @@ ggplot(la_housing_long, aes(x = Date, y = Rent_Price, group = RegionName, color 
        caption = "Data Source: Zillow Home Value Index (ZHVI)")
 ```
 
+
+Compare wildfire-affected home values with the values of similar ZIP codes that were not affected.
+
+We will implement K-Nearest Neighbors (KNN) regression to compare wildfire-affected ZIP codes with similar unaffected ZIP codes based on home value trends. The goal is to find ZIP codes that were not impacted by wildfires but have similar historical housing trends and use them as a benchmark for comparison.
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(here)
+library(zoo)
+
+# Ensure the "data" directory exists
+dir.create(here("data"), showWarnings = FALSE)
+
+# Read the cleaned dataset
+la_housing_long <- read_csv(here("data", "cleaned_LA_housing.csv"), show_col_types = FALSE)
+
+# Convert RegionName (ZIP codes) to character format to ensure compatibility
+la_housing_long <- la_housing_long %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# ---------------------------------
+# Step 1: Define Wildfire-Affected ZIP Codes
+# ---------------------------------
+wildfire_zips <- list(
+  "46 Fire" = c(92509, 92504, 92503, 92506, 92324, 92505, 92570, 92508, 91752, 92337, 92316, 92501),
+  "Eagle Fire" = c(92881, 92503, 92882, 92879, 92883, 92570),
+  "Easy Fire" = c(93065, 91360, 93021, 93063, 91320, 93012, 91362, 91361, 91307, 93015, 93066),
+  "Getty Fire" = c(90049, 90025, 90024, 90272, 90403, 91403, 91436, 90402, 90077, 90095, 90073),
+  "Saddle Ridge Fire" = c(91342, 91344, 91326, 91311, 91321, 91381, 93063, 91331),
+  "Tick Fire" = c(91387, 91351, 91390, 91342, 93551, 91350, 91354, 91321, 91384)
+)
+
+# Convert wildfire ZIPs into a dataframe
+wildfire_clusters <- stack(wildfire_zips) %>%
+  rename(RegionName = values, Cluster = ind) %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# ---------------------------------
+# Step 2: Resolve Many-to-Many Relationship in Wildfire Clusters
+# ---------------------------------
+
+# If a ZIP code is listed in multiple wildfires, merge them into a single entry
+wildfire_clusters <- wildfire_clusters %>%
+  group_by(RegionName) %>%
+  summarize(Cluster = paste(unique(Cluster), collapse = ", ")) %>%
+  ungroup()
+
+# ---------------------------------
+# Step 3: Merge Wildfire Data with Housing Prices
+# ---------------------------------
+la_housing_long <- la_housing_long %>%
+  left_join(wildfire_clusters, by = "RegionName") %>%
+  mutate(Cluster = as.character(Cluster)) %>%
+  mutate(Cluster = replace_na(Cluster, "Not Affected"))
+
+# ---------------------------------
+# Step 4: Find Comparable ZIP Codes for Control Group
+# ---------------------------------
+# Calculate median home value for each ZIP over the entire period
+zip_summary <- la_housing_long %>%
+  group_by(RegionName) %>%
+  summarize(Median_Home_Value = median(Rent_Price, na.rm = TRUE))
+
+# Get the median home values of affected ZIP codes
+affected_summary <- zip_summary %>%
+  filter(RegionName %in% wildfire_clusters$RegionName)
+
+# Find non-affected ZIPs with similar median home values
+non_affected_summary <- zip_summary %>%
+  filter(!(RegionName %in% wildfire_clusters$RegionName))
+
+# Match each affected ZIP to the closest non-affected ZIP based on median home value
+matched_pairs <- affected_summary %>%
+  rowwise() %>%
+  mutate(Matched_Region = non_affected_summary$RegionName[which.min(abs(non_affected_summary$Median_Home_Value - Median_Home_Value))]) %>%
+  ungroup()
+
+# Merge matched control ZIPs back into main dataset
+la_housing_long <- la_housing_long %>%
+  left_join(matched_pairs %>% select(RegionName, Matched_Region), by = "RegionName")
+
+# ---------------------------------
+# Step 5: Compute LA County Benchmark
+# ---------------------------------
+# Calculate LA County average home value over time
+la_avg_home_value <- la_housing_long %>%
+  group_by(Date) %>%
+  summarize(Avg_Home_Value = mean(Rent_Price, na.rm = TRUE))  
+
+# Merge LA County average with the main dataset
+la_housing_long <- la_housing_long %>%
+  left_join(la_avg_home_value, by = "Date")
+
+# ---------------------------------
+# Step 6: Generate Visualization Comparing Affected vs. Control ZIPs
+# ---------------------------------
+ggplot(la_housing_long, aes(x = Date, y = Rent_Price, group = RegionName, color = Cluster)) +
+  geom_line(data = la_housing_long %>% filter(Cluster != "Not Affected"), alpha = 0.6, size = 0.8) +  # Wildfire-affected ZIPs
+  geom_line(data = la_housing_long %>% filter(RegionName %in% matched_pairs$Matched_Region), aes(color = "Control ZIPs"), alpha = 0.6, size = 0.8, linetype = "dashed") +  # Matched ZIPs
+  geom_line(aes(y = Avg_Home_Value), color = "black", size = 1.2, linetype = "dotted") +  # LA County average
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Fix overlapping x-axis labels
+  theme_minimal() +
+  labs(title = "Impact of LA Wildfires on Home Values vs. Similar Unaffected ZIPs",
+       subtitle = "Dashed lines represent matched ZIPs, dotted line represents LA County average",
+       x = "Year", y = "Home Value ($)",
+       color = "Cluster",
+       caption = "Data Source: Zillow Home Value Index (ZHVI)")
+```
+
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(here)
+library(zoo)
+library(FNN)  # For KNN
+
+# Ensure the "data" directory exists
+dir.create(here("data"), showWarnings = FALSE)
+
+# Load the cleaned dataset
+la_housing_long <- read_csv(here("data", "cleaned_LA_housing.csv"), show_col_types = FALSE)
+
+# Convert RegionName (ZIP codes) to character format to ensure compatibility
+la_housing_long <- la_housing_long %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# ---------------------------------
+# Step 1: Define Wildfire-Affected ZIP Codes
+# ---------------------------------
+wildfire_zips <- list(
+  "46 Fire" = c(92509, 92504, 92503, 92506, 92324, 92505, 92570, 92508, 91752, 92337, 92316, 92501),
+  "Eagle Fire" = c(92881, 92503, 92882, 92879, 92883, 92570),
+  "Easy Fire" = c(93065, 91360, 93021, 93063, 91320, 93012, 91362, 91361, 91307, 93015, 93066),
+  "Getty Fire" = c(90049, 90025, 90024, 90272, 90403, 91403, 91436, 90402, 90077, 90095, 90073),
+  "Saddle Ridge Fire" = c(91342, 91344, 91326, 91311, 91321, 91381, 93063, 91331),
+  "Tick Fire" = c(91387, 91351, 91390, 91342, 93551, 91350, 91354, 91321, 91384)
+)
+
+# Convert wildfire ZIPs into a dataframe
+wildfire_clusters <- stack(wildfire_zips) %>%
+  rename(RegionName = values, Cluster = ind) %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# Merge wildfire cluster info with housing data
+la_housing_long <- la_housing_long %>%
+  left_join(wildfire_clusters, by = "RegionName") %>%
+  mutate(Cluster = as.character(Cluster)) %>%
+  mutate(Cluster = replace_na(Cluster, "Not Affected"))  
+
+# ---------------------------------
+# Step 2: Compute Pre-Fire Home Values
+# ---------------------------------
+fire_dates <- data.frame(
+  Cluster = c("46 Fire", "Eagle Fire", "Easy Fire", "Getty Fire", "Saddle Ridge Fire", "Tick Fire"),
+  Fire_Date = as.Date(c("2019-10-31", "2019-07-31", "2019-10-31", "2019-10-31", "2019-10-31", "2019-10-31"))
+)
+
+# Merge fire dates with wildfire data
+wildfire_data <- la_housing_long %>%
+  left_join(fire_dates, by = "Cluster") %>%
+  filter(!is.na(Fire_Date))  # Keep only wildfire-affected ZIP codes
+
+# Calculate pre-fire average home value (3 months before the fire)
+wildfire_data <- wildfire_data %>%
+  group_by(RegionName) %>%
+  mutate(Pre_Fire_Avg = mean(Rent_Price[Date < Fire_Date & Date >= (Fire_Date - months(3))], na.rm = TRUE)) %>%
+  ungroup()
+
+# Save the modified dataset
+write_csv(wildfire_data, here("data", "wildfire_home_values.csv"))
+
+# ---------------------------------
+# Step 3: Find Similar ZIPs Using KNN
+# ---------------------------------
+# Create unaffected ZIP dataset
+unaffected_zips <- la_housing_long %>%
+  filter(Cluster == "Not Affected") %>%
+  group_by(RegionName) %>%
+  summarize(Pre_Fire_Avg = mean(Rent_Price[Date < "2019-10-31"], na.rm = TRUE), .groups = "drop")
+
+# Remove NAs from the dataset before applying KNN
+unaffected_zips_clean <- unaffected_zips %>% drop_na(Pre_Fire_Avg)
+wildfire_data_clean <- wildfire_data %>% drop_na(Pre_Fire_Avg)
+
+# Ensure enough data is available
+if (nrow(unaffected_zips_clean) > 0 & nrow(wildfire_data_clean) > 0) {
+  
+  # Use KNN to find the closest unaffected ZIP for each wildfire-affected ZIP
+  knn_result <- get.knnx(
+    data = matrix(unaffected_zips_clean$Pre_Fire_Avg, ncol = 1),  # Feature space: Pre-Fire Home Value
+    query = matrix(wildfire_data_clean$Pre_Fire_Avg, ncol = 1),
+    k = 1  # Find the single best match
+  )
+
+  # Match wildfire-affected ZIPs to similar unaffected ZIPs
+  wildfire_data_clean$Matched_ZIP <- unaffected_zips_clean$RegionName[knn_result$nn.index]
+} else {
+  stop("Error: Not enough data after removing NAs.")
+}
+
+# Save matched ZIPs for control comparison
+write_csv(wildfire_data_clean, here("data", "matched_zip_comparison.csv"))
+
+# ---------------------------------
+# Step 4: Analyze Home Value Recovery
+# ---------------------------------
+wildfire_data_clean <- wildfire_data_clean %>%
+  mutate(Time_Since_Fire = as.numeric(difftime(Date, Fire_Date, units = "days") / 30)) %>%  # Convert days to months
+  mutate(Normalized_Value = Rent_Price / Pre_Fire_Avg * 100)  # Normalize to % of pre-fire value
+
+# Compute recovery statistics
+recovery_stats <- wildfire_data_clean %>%
+  group_by(Cluster, Time_Since_Fire) %>%
+  summarize(Avg_Home_Value = mean(Normalized_Value, na.rm = TRUE), .groups = "drop")
+
+# Save recovery statistics
+write_csv(recovery_stats, here("data", "recovery_stats.csv"))
+
+# ---------------------------------
+# Step 5: Plot Recovery Trends
+# ---------------------------------
+ggplot(recovery_stats, aes(x = Time_Since_Fire, y = Avg_Home_Value, color = Cluster)) +
+  geom_line(size = 1.2) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "black") +  # Reference line for full recovery
+  scale_x_continuous(breaks = seq(0, max(recovery_stats$Time_Since_Fire, na.rm = TRUE), by = 6)) +  # Show every 6 months
+  theme_minimal() +
+  labs(title = "Post-Wildfire Home Value Recovery",
+       subtitle = "Dashed line represents full recovery (100%)",
+       x = "Months Since Fire", y = "Home Value (% of Pre-Fire)",
+       color = "Wildfire Cluster",
+       caption = "Data Source: Zillow Home Value Index (ZHVI)")
+```
 # **\underline{Citations}**
 
 # **\underline{Appendix}**
