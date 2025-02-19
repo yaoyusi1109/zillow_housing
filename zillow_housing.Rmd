@@ -69,15 +69,23 @@ Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("data", "Zip_zori_uc_sfrcondom
 \clearpage
 
 # **\underline{Teammate Introduction}**
+
 Hi, I am Yusi Yao! I am originally from Nanjing, China, but I am always on the move—whether it is heading back to D.C. on weekends or exploring the outdoors. In Blacksburg, you will probably find me grabbing a bite at Rainbowl, my go-to spot for poke bowl. Outside of academics, I enjoy fishing and playing soccer.
+
+Hi, I am Xavier Akers! I am a CMDA major who enjoys tackling data-driven problems. My favorite spot on campus is Owens, whether it is for a quick meal or just a place to relax. In my free time, I like to explore new places around Blacksburg and unwind from classes.
 
 # **\underline{Data Introduction}**
 
 ## **Dataset Overview**
 
-This dataset tracks home values  trends across different ZIP codes in the U.S. It includes VAHI, an index developed by zillow to estimate values for single-family homes and condominiums. The data covers its fluctuation from **January 2015 to January 2025**.
+Our dataset includes both the Zillow Observed Rent Index (ZORI) and the Zillow Home Value Index (ZHVI), providing a comprehensive view of rental and home value trends across different ZIP codes in the U.S. Our goal is to analyze the impact of LA wildfires on the housing market, examining potential correlations between wildfire events and changes in rental prices and home values in Los Angeles.
 
-Zillow Home Value Index (ZHVI): A measure of the typical home value and market changes across a given region and housing type. It reflects the typical value for homes in the 35th to 65th percentile range. Available as a smoothed, seasonally adjusted measure and as a raw measure.
+The ZORI score tracks typical rental prices by focusing on the middle range of rents, excluding extreme high and low values. It is designed to reflect rental housing prices for all homes, not just those currently listed for rent. The index is also smoothed to remove short-term fluctuations, offering a clearer picture of long-term trends. The dataset covers monthly rent values from January 2015 to January 2025 and includes categories such as All Homes, Single Family Residences, and Multi-Family Residences. For our analysis, we have chosen the All Homes Plus Multifamily Time Series ($) dataset, which can be accessed here.
+
+The ZHVI score, on the other hand, measures typical home values and market changes for single-family homes and condominiums. Developed by Zillow, this index estimates home values within the 35th to 65th percentile range, providing insights into general market trends rather than outliers. Like ZORI, ZHVI is available as both a smoothed, seasonally adjusted measure and a raw measure, covering fluctuations from January 2015 to January 2025.
+
+By analyzing both ZORI and ZHVI alongside wildfire data, we aim to identify patterns in how major wildfires impact housing prices and rental markets in Los Angeles. This research will help us understand whether wildfires lead to temporary price fluctuations, long-term market shifts, or increased disparities between different housing categories.
+
 
 ## **Data Category**
 
@@ -565,6 +573,151 @@ ggplot(recovery_stats, aes(x = Time_Since_Fire, y = Avg_Home_Value, color = Clus
 
 \clearpage
 
+
+# **NaiveBayes classification**
+
+*The preprocessing steps can be found in the Appendix section.*
+
+We aim to analyze the **Rental Price Index** in areas of wildfires. Specifically, we will be looking at the location of the Easy Fire (October 2019), Getty Fire (October 2019), and the Saddle Ridge Fire (October 2019). The ZIP codes of each fire are stored in `easy_fire_zips`, `getty_fire_zips`, and `saddle_ridge_zips`.
+
+```{r fire_zips}
+easy_fire_zips = c(93065, 91360, 93021, 93063, 91320, 93012, 91362, 91361, 91307, 93015, 93066)
+getty_fire_zips = c(90049, 90025, 90024, 90272, 90403, 91403, 91436, 90402, 90077, 90095, 90073)
+saddle_ridge_fire_zips = c(91342, 91344, 91326, 91311, 91321, 91381, 93063, 91331, 91350, 91355, 91387, 91304, 91354, 91343, 91306, 91351, 91352, 91325, 91042, 91324, 91040, 91384, 91340, 91390, 91345, 93015, 93510, 93040, 91330)
+fire_zips = c(easy_fire_zips, getty_fire_zips, saddle_ridge_fire_zips)
+```
+
+A sample of the Los Angeles Fire Housing data for only these ZIP codes is shown below.
+
+```{r load_df, echo=FALSE}
+la_housing_long = read.csv(file="data/cleaned_LA_housing.csv")
+la_housing_long$Date = as.Date(la_housing_long$Date, format = "%Y-%m-%d")
+
+fire_housing_data = la_housing_long %>%
+  filter(RegionName %in% fire_zips)
+fire_housing_data = fire_housing_data[!is.na(fire_housing_data$Rent_Price),]
+fire_categories <- tibble(
+  RegionName = c(easy_fire_zips, getty_fire_zips, saddle_ridge_fire_zips),
+  Fire = c(
+    rep("Easy Fire", length(easy_fire_zips)),
+    rep("Getty Fire", length(getty_fire_zips)),
+    rep("Saddle Ridge Fire", length(saddle_ridge_fire_zips))
+  )
+)
+fire_housing_data <- fire_housing_data %>%
+  left_join(fire_categories, by = "RegionName")
+head(fire_housing_data, 3)
+```
+
+## **Location Comparisons**
+
+The following boxplot displays the distribution of rent prices in ZIP codes affected by the different wildfires. From the distribution of rent prices, we can make educated assumptions about each location's rental market.
+
+```{r fig.width=7, fig.height=4}
+ggplot(fire_housing_data, aes(x = Fire, y = Rent_Price, fill = Fire)) +
+  geom_boxplot() +
+  labs(
+    title = "Comparison of House Rent Index in Fire-Affected Areas",
+    x = "Fire Area",
+    y = "House Rent Index"
+  ) +
+  theme_minimal()
+```
+
+Rental indexes in the Easy Fire region were generally higher than the other regions, with very few extreme values. The Getty Fire region had a wider range of rental prices, including some outliers. This suggest the Getty Fire also included some wealthier or more in demand areas. The Saddle Ridge Fire region had a more concentrated rental prices, with a few high-end outliers.
+
+The following density plot visualizes each of the wildfire locations. This helps us better understand underlying distribution of the data.
+
+```{r fig.width=7, fig.height=4}
+ggplot(fire_housing_data, aes(x = Rent_Price, color = Fire, fill = Fire)) +
+  geom_density(alpha = 0.3) +
+  labs(
+    title = "Density Plot of Rent Prices in Fire-Affected Areas",
+    x = "Rent Price",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+This visual reinforces our assumptions from the prior boxplot. Residences in the Easy Fire region experience lower variance in rental price index. Houses in the Saddle Ridge fire are generally lower than the other two regions, with a few outliers, potentially indicating a more expensive or in demand area nearby. The Getty fire region has the largest variance, with one large peak and two smaller peaks on the high end. This indicate that the Saddle Ridge Fire spread to a broader range of communities.
+
+Below is a table displaying the summary statistics of the rental prices in the fire-affected areas.
+
+```{r}
+summary_table <- fire_housing_data %>%
+  group_by(Fire) %>%
+  summarize(
+    Mean_Rent = mean(Rent_Price, na.rm = TRUE),
+    Median_Rent = median(Rent_Price, na.rm = TRUE),
+    Min_Rent = min(Rent_Price, na.rm = TRUE),
+    Max_Rent = max(Rent_Price, na.rm = TRUE),
+    Std_Dev = sd(Rent_Price, na.rm = TRUE)
+  )
+
+print(summary_table)
+```
+
+## **Predictive Analysis**
+
+We wish to determine how well Naive Bayes can predict different wildfires based on features such as `RegionName`, `CountyName`, `Date`, and `Rent_Price`.
+
+```{r, echo=FALSE}
+# Extract Year and Month from Date
+nb_df = fire_housing_data
+nb_df$Date = as.Date(nb_df$Date)
+nb_df$Year = format(nb_df$Date, "%Y")
+nb_df$Month = format(nb_df$Date, "%m")
+
+# Discretize Rent_Price to low, medium, high
+nb_df$Rent_Category = cut(nb_df$Rent_Price, breaks=3, labels=c("Low", "Medium", "High"))
+
+nb_df$Fire = as.factor(nb_df$Fire)
+nb_df$Year = as.factor(nb_df$Year)
+nb_df$Month = as.factor(nb_df$Month)
+nb_df$Rent_Category = as.factor(nb_df$Rent_Category)
+```
+
+Since Naive Bayes works best with discrete data, we discretize `Rent_Price` into `Low`, `Medium`, and `High`. Additionally, we extract the `Year` and `Month`. This preprocessing code can be viewed in the Appendix under Naive Bayes Preprocessing.
+
+### Modeling
+
+We create our Naive Bayes model as follows. Note we split our data using the 80/20 rule.
+
+```{r}
+library(e1071) # For Naive Bayes
+
+set.seed(0)
+train_idx = sample(1:nrow(nb_df), size = 0.8 * nrow(nb_df))
+train_data = nb_df[train_idx,]
+test_data = nb_df[-train_idx,]
+
+nb_model = naiveBayes(Fire ~ Rent_Category + Year + Month + RegionName, data=train_data)
+```
+
+We can see how well our model did at predicting Fires from the given factors.
+
+```{r}
+yhat = predict(nb_model, test_data) # Validate the model
+
+tab = table(yhat, test_data$Fire)
+misclass = (sum(tab)- sum(diag(tab))) / sum(tab)
+accuracy = 1 - misclass
+```
+
+### Results
+
+We have an accuracy rate of `r accuracy` and the following confusion matrix,
+
+```{r echo=FALSE}
+print(tab)
+```
+
+We see the model was successful at classifying the wildfire based on different features like `Rent_Category`, `Year`, `Month`, and `RegionName`. The high accuracy (93.22%) suggests that the model is able to successfully predict the different wildfires. The Easy Fire was classified perfectly, while the Getty Fire and Saddle Ridge Fire had very few cases misclassified.
+
+Therefore, the Naive Bayes classifier was able to successfully predict wildfire regions using rent indexes, time, and region information for the Easy Fire, Getty Fire, and Saddle Ridge Fire.
+
+\clearpage
+
 # **\underline{Appendix}**
 
 ## **Data Cleaning**
@@ -606,6 +759,60 @@ la_housing_long <- la_housing_long %>%
 write_csv(la_housing_long, here("data", "cleaned_LA_housing.csv"))
 ```
 
+## Data Preprocessing Code
+
+This code extracts only the LA housing data and converts the date from wide format to long format.
+
+```{r, echo=TRUE}
+# Read the dataset (using relative path) and suppress column type warnings
+Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("data", "Zip_zori_uc_sfrcondomfr_sm_month.csv"), show_col_types = FALSE)
+
+# Filter for Los Angeles County (focus on LA housing market)
+la_housing <- Zip_zori_uc_sfrcondomfr_sm_month %>%
+  filter(CountyName == "Los Angeles County" & State == "CA")
+
+# Identify date columns (should already be formatted correctly)
+date_columns <- names(la_housing)[10:ncol(la_housing)]
+
+# Print column names to verify date columns exist
+print(date_columns)  # Should display "2015-01-31", "2015-02-28", etc.
+
+# Convert wide format to long format
+la_housing_long <- la_housing %>%
+  pivot_longer(cols = all_of(date_columns), names_to = "Date", values_to = "Rent_Price")
+
+# Convert Date column to Date type
+la_housing_long$Date <- as.Date(la_housing_long$Date, format = "%Y-%m-%d")
+
+# Handle missing values using interpolation
+la_housing_long <- la_housing_long %>%
+  group_by(RegionName) %>%
+  mutate(Rent_Price = ifelse(is.na(Rent_Price), 
+                             zoo::na.approx(Rent_Price, na.rm = FALSE), 
+                             Rent_Price)) %>%
+  ungroup()
+
+# Save cleaned dataset using relative path
+write_csv(la_housing_long, here("data", "cleaned_LA_housing.csv"))
+```
+
+## Naive Bayes Preprocessing
+
+```{r, echo=TRUE}
+# Extract Year and Month from Date
+nb_df = fire_housing_data
+nb_df$Date = as.Date(nb_df$Date)
+nb_df$Year = format(nb_df$Date, "%Y")
+nb_df$Month = format(nb_df$Date, "%m")
+
+# Discretize Rent_Price to low, medium, high
+nb_df$Rent_Category = cut(nb_df$Rent_Price, breaks=3, labels=c("Low", "Medium", "High"))
+
+nb_df$Fire = as.factor(nb_df$Fire)
+nb_df$Year = as.factor(nb_df$Year)
+nb_df$Month = as.factor(nb_df$Month)
+nb_df$Rent_Category = as.factor(nb_df$Rent_Category)
+```
 
 # **\underline{Citations}**
 https://themortgagepoint.com/2025/01/24/l-a-wildfires-where-does-the-housing-market-go-from-here/#:~:text=The%20sizable%20total%20value%20of,estimated%20value%20of%20%243.0%20million.
