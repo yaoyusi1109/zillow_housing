@@ -1,0 +1,109 @@
+---
+title: "CMDA-4654"
+author: "Xavier Akers"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    highlight: haddock
+keep_tex: no
+number_sections: no
+html_document:
+  df_print: paged
+geometry: margin = 0.5in
+header-includes:
+- \usepackage{newunicodechar}
+- \newunicodechar{≤}{\ensuremath{\leq}}
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+editor_options:
+  chunk_output_type: console
+documentclass: article
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+# This is the setup chunk
+# Here you can set global options for the entire document
+
+library(knitr)    # For RMarkdown settings
+library(readr)    # For reading CSV files
+library(tidyverse) # Includes dplyr, ggplot2, tidyr, etc.
+library(zoo)      # For handling missing values
+library(ggplot2)  # For plotting
+library(here)     # Ensures all file paths are relative
+
+# Set global options for figures and output
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  comment = NA,  # Required
+  fig.path = here("figures/"),  # Store all figures here (ensure this folder exists)
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 7,
+  message = FALSE,  # Turn off library load messages
+  warning = FALSE   # Turn off warnings
+)
+
+# Ensure the "data" directory exists
+dir.create(here("data"), showWarnings = FALSE)
+
+# Read the dataset (ensuring relative path)
+Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("data", "Zip_zori_uc_sfrcondomfr_sm_month.csv"), show_col_types = FALSE)
+```
+
+\clearpage
+
+# Teammate Introduction
+
+Meet Yusi Yao! Born in Nanjing, China, Yusi is always on the go-whether it is heading back to D.C. on weekends or enjoying the outdoors. When in Blacksburg, Rainbowl is the go-to spot for a great meal. In free time, Yusi enjoys fishing and playing soccer, making the most of both nature and sports.
+
+# **Data Introduction**
+
+## **Dataset Overview**
+
+Our data is the **Zillow Observed Rent Index (ZORI)**. The ZORI score tracks typical rental prices in a given area. This index attempts to represent an accurate rental housing stock by focusing on the middle range of rents, excluding very high and very low prices. It is designed to depict rental housing prices for all homes, not only homes currently listed for-rent. Additionally, it is smoothed out to remove short-term spikes and provide a better understanding of long-term trends. The data covers monthly rent values from **January 2015 to January 2025**.
+
+The ZORI score is taken for the categories: All homes, Single Family Residences, and Multi-Family Residences. We have chosen to analyze the [**All Homes Plus Multifamily Time Series (\$)**](https://www.zillow.com/research/data/) dataset.
+
+## **Data Category**
+
+This dataset belongs to category 8 **Housing**. In this project, we tend to discover the LA wildfire's impact on the housing market in the ZIP codes of Los Angeles.
+
+### **Data Dictionary**
+
+| Column Name | Description |
+|----|----|
+| **RegionID** | Unique ID for each ZIP code. |
+| **SizeRank** | Ranking of ZIP code by housing market size. |
+| **RegionName** | ZIP code number. |
+| **RegionType** | Type of region (e.g., "zip"). |
+| **StateName** | Full name of the state. |
+| **State** | Two-letter state abbreviation. |
+| **City** | City name. |
+| **Metro** | Metro area including the ZIP code. |
+| **CountyName** | County name. |
+| **2015-01-31, ..., 2025-01-31** | Monthly rent estimates in dollars. |
+
+## **Data Source**
+
+This dataset comes from **Zillow’s public data**. More details can be found at:\
+[Zillow Research Data](https://www.zillow.com/research/data/)
+
+# **Analysis & Discussion**
+
+```{r}
+la_housing_long = read.csv(file="data/cleaned_LA_housing.csv")
+head(la_housing_long)
+```
