@@ -66,19 +66,20 @@ Zip_zori_uc_sfrcondomfr_sm_month <- read_csv(here("data", "Zip_zori_uc_sfrcondom
 
 \clearpage
 
-# Teammate Introduction
+# **\underline{Teammate Introduction}**
+Hi, I am Yusi Yao! I am originally from Nanjing, China, but I am always on the move—whether it is heading back to D.C. on weekends or exploring the outdoors. In Blacksburg, you will probably find me grabbing a bite at Rainbowl, my go-to spot for poke bowl. Outside of academics, I enjoy fishing and playing soccer.
 
-Meet Yusi Yao! Born in Nanjing, China, Yusi is always on the go-whether it is heading back to D.C. on weekends or enjoying the outdoors. When in Blacksburg, Rainbowl is the go-to spot for a great meal. In free time, Yusi enjoys fishing and playing soccer, making the most of both nature and sports.
-
-# **Data Introduction**
+# **\underline{Data Introduction}**
 
 ## **Dataset Overview**
 
-This dataset tracks rental price trends across different ZIP codes in the U.S. It includes rental price estimates for single-family homes and condominiums. The data covers monthly rent values from **January 2015 to January 2025**.
+This dataset tracks home values  trends across different ZIP codes in the U.S. It includes VAHI, an index developed by zillow to estimate values for single-family homes and condominiums. The data covers its fluctuation from **January 2015 to January 2025**.
+
+Zillow Home Value Index (ZHVI): A measure of the typical home value and market changes across a given region and housing type. It reflects the typical value for homes in the 35th to 65th percentile range. Available as a smoothed, seasonally adjusted measure and as a raw measure.
 
 ## **Data Category**
 
-This dataset belongs to category 8 **Housing**. In this project, we tend to discover the LA wildfire's impact on the housing market in the ZIP codes of Los Angeles.
+This dataset belongs to category **8 housing**. In this project, we tend to discover the LA wildfire's impact on the housing market in the ZIP codes of Los Angeles.
 
 ## **Data Dictionary**
 
@@ -100,7 +101,7 @@ This dataset belongs to category 8 **Housing**. In this project, we tend to disc
 This dataset comes from **Zillow’s public data**. More details can be found at:\
 [Zillow Research Data](https://www.zillow.com/research/data/)
 
-# **Analysis & Discussion**
+# **\underline{Analysis \& Discussion}**
 
 ## **Data Cleaning**
 
@@ -147,25 +148,6 @@ write_csv(la_housing_long, here("data", "cleaned_LA_housing.csv"))
 Rental Price Trends in Los Angeles County
 
 ```{r}
-# # Load the cleaned dataset using relative path
-# la_housing_long <- read_csv(here("data", "cleaned_LA_housing.csv"), show_col_types = FALSE)
-# 
-# # Convert Date column to Date format
-# la_housing_long$Date <- as.Date(la_housing_long$Date, format = "%Y-%m-%d")
-# 
-# # Generate the rental price trends plot
-# ggplot(la_housing_long, aes(x = Date, y = Rent_Price, group = RegionName)) +
-#   geom_line(alpha = 0.3, color = "blue") +
-#   theme_minimal() +
-#   labs(title = "Rental Price Trends in Los Angeles County",
-#        x = "Date", y = "Rent Price ($)",
-#        caption = "Data Source: Zillow Observed Rent Index (ZORI)")
-
-# Load necessary libraries
-library(tidyverse)
-library(here)
-library(zoo)
-
 # Ensure the "data" directory exists
 dir.create(here("data"), showWarnings = FALSE)
 
@@ -262,6 +244,68 @@ ggplot(la_housing_long, aes(x = Date, y = Rent_Price, group = RegionName)) +
   theme(legend.position = "right")
 ```
 
-# Citations
 
-# Appendix
+```{r}
+# Ensure the "data" directory exists
+dir.create(here("data"), showWarnings = FALSE)
+
+# Read the cleaned dataset
+la_housing_long <- read_csv(here("data", "cleaned_LA_housing.csv"), show_col_types = FALSE)
+
+# Convert RegionName (ZIP codes) to character format to ensure compatibility
+la_housing_long <- la_housing_long %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# ---------------------------------
+# Step 1: Define Wildfire-Affected ZIP Codes
+# ---------------------------------
+wildfire_zips <- list(
+  "46 Fire" = c(92509, 92504, 92503, 92506, 92324, 92505, 92570, 92508, 91752, 92337, 92316, 92501),
+  "Eagle Fire" = c(92881, 92503, 92882, 92879, 92883, 92570),
+  "Easy Fire" = c(93065, 91360, 93021, 93063, 91320, 93012, 91362, 91361, 91307, 93015, 93066),
+  "Getty Fire" = c(90049, 90025, 90024, 90272, 90403, 91403, 91436, 90402, 90077, 90095, 90073),
+  "Saddle Ridge Fire" = c(91342, 91344, 91326, 91311, 91321, 91381, 93063, 91331),
+  "Tick Fire" = c(91387, 91351, 91390, 91342, 93551, 91350, 91354, 91321, 91384)
+)
+
+# Convert wildfire ZIPs into a dataframe
+wildfire_clusters <- stack(wildfire_zips) %>%
+  rename(RegionName = values, Cluster = ind) %>%
+  mutate(RegionName = as.character(RegionName))  
+
+# Merge wildfire cluster info with housing data
+la_housing_long <- la_housing_long %>%
+  left_join(wildfire_clusters, by = "RegionName") %>%
+  mutate(Cluster = as.character(Cluster)) %>%
+  mutate(Cluster = replace_na(Cluster, "Not Affected"))  
+
+# ---------------------------------
+# Step 2: Compute LA County Benchmark
+# ---------------------------------
+# Calculate LA County average home value
+la_avg_home_value <- la_housing_long %>%
+  group_by(Date) %>%
+  summarize(Avg_Home_Value = mean(Rent_Price, na.rm = TRUE))  
+
+# Merge LA County average with the main dataset
+la_housing_long <- la_housing_long %>%
+  left_join(la_avg_home_value, by = "Date")
+
+# ---------------------------------
+# Step 3: Generate Updated Visualization of Wildfire Impact
+# ---------------------------------
+ggplot(la_housing_long, aes(x = Date, y = Rent_Price, group = RegionName, color = Cluster)) +
+  geom_line(alpha = 0.4, size = 0.8) +  # Wildfire-affected ZIPs
+  geom_line(aes(y = Avg_Home_Value), color = "black", size = 1.2, linetype = "dashed") +  # LA County average
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Fix overlapping x-axis labels
+  theme_minimal() +
+  labs(title = "Impact of LA Wildfires on Home Values",
+       subtitle = "Dashed black line represents LA County average home value",
+       x = "Year", y = "Home Value ($)",
+       color = "Wildfire Cluster",
+       caption = "Data Source: Zillow Home Value Index (ZHVI)")
+```
+
+# **\underline{Citations}**
+
+# **\underline{Appendix}**
