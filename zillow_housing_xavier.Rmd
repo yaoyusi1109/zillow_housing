@@ -302,3 +302,7 @@ nb_df$Year = as.factor(nb_df$Year)
 nb_df$Month = as.factor(nb_df$Month)
 nb_df$Rent_Category = as.factor(nb_df$Rent_Category)
 ```
+
+# Citation
+
+<https://themortgagepoint.com/2025/01/24/l-a-wildfires-where-does-the-housing-market-go-from-here/#>
