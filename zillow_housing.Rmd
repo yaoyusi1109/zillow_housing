@@ -63,7 +63,7 @@ Zip_zori_uc_sfrcondomfr_sm_month <- read_csv("~/Desktop/VT/4654_DAML/group_proje
 
 Meet Yusi Yao! Born in Nanjing, China, Yusi is always on the go-whether it is heading back to D.C. on weekends or enjoying the outdoors. When in Blacksburg, Rainbowl is the go-to spot for a great meal. In free time, Yusi enjoys fishing and playing soccer, making the most of both nature and sports.
 
-11111
+Meet Xavier Akers! From Northern Virginia, Xavier spend most of his meals cooking at home but would never say no to eating at Himalayan Curry Cafe. In his free time, Xavier enjoys working out, wrestling, and spending time outside with friends.
 
 # **Data Introduction**
 
